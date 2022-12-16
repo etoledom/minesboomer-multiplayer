@@ -1,6 +1,6 @@
 [submodule "minesweeper_core"]
 	path = minesweeper_core
-	url = https://github.com/etoledom/minesweeper_core.git
+	url = git@github.com:etoledom/minesweeper_core.git
 [submodule "minesweeper_multiplayer"]
 	path = minesweeper_multiplayer
-	url = https://github.com/etoledom/minesweeper_multiplayer.git
+	url = git@github.com:etoledom/minesweeper_multiplayer.git
