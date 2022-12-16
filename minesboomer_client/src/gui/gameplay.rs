@@ -1,11 +1,11 @@
-use std::sync::{Arc, Mutex};
-
 use super::mine_image::MineImage;
 use eframe::egui;
 use egui::{Button, Color32, RichText, TextStyle, Ui, WidgetText};
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
+use minesboomer_utils::*;
 use minesweeper_multiplayer::*;
-use serde_json;
+
+use std::sync::{Arc, Mutex};
 // use tokio::sync::mpsc::UnboundedSender;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
@@ -22,8 +22,6 @@ impl MinesBoomer {
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
 
-        println!("Creating game...");
-        // let game = Multiplayer::new(["Player 1", "Player 2"], Difficulty::Easy);
         MinesBoomer {
             game,
             mine: MineImage::default(),
@@ -99,7 +97,7 @@ impl MinesBoomer {
         if game.winner().is_none() {
             game.player_selected(cell.coordinates);
             let serializable: SerializablePoint = cell.coordinates.into();
-            self.sender.unbounded_send(Message::Text(serde_json::to_string(&serializable).unwrap())).unwrap();
+            self.sender.unbounded_send(Message::Text(serializable.to_json_string())).unwrap();
         }
     }
 }
@@ -135,16 +133,4 @@ fn get_text_for_cell(cell: &Cell) -> WidgetText {
     };
 
     WidgetText::RichText(RichText::new(text(cell)).size(20.).color(Color32::BLACK).text_style(TextStyle::Button))
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-struct SerializablePoint {
-    x: usize,
-    y: usize,
-}
-
-impl From<Point> for SerializablePoint {
-    fn from(point: Point) -> SerializablePoint {
-        SerializablePoint { x: point.x, y: point.y }
-    }
 }

@@ -1,5 +1,5 @@
 mod gui;
-
+use minesboomer_utils::*;
 use minesweeper_multiplayer::{Difficulty, Multiplayer, Point};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -9,8 +9,7 @@ use futures::channel::mpsc;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use futures_util::{future, pin_mut, StreamExt};
 use gui::gameplay::MinesBoomer;
-use serde_json;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncReadExt;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 
 fn main() {
@@ -20,15 +19,10 @@ fn main() {
 
     let game_clone = Arc::clone(&game);
     thread::spawn(move || {
-        println!("Will try to connect");
         run_ws_clien(selected_send_rx, selected_received_tx, selected_received_rx, game_clone);
     });
 
-    println!("Will create UI...");
-
     let mines = MinesBoomer::new(selected_send_tx, game);
-
-    // let mut shared = Arc::new(mines);
 
     let native_options = eframe::NativeOptions::default();
     eframe::run_native("MinesBooMer", native_options, Box::new(|cc| Box::new(mines)));
@@ -58,8 +52,6 @@ async fn run_ws_clien(
 
     let url = url::Url::parse(connect_addr).unwrap();
 
-    // let (stdin_tx, stdin_rx) = mpsc::unbounded();
-    // tokio::spawn(read_stdin(stdin_tx));
     tokio::spawn(receive_message(rx, game));
 
     println!("connecting...");
@@ -85,37 +77,4 @@ async fn run_ws_clien(
     pin_mut!(stdin_to_ws, ws_to_stdout);
 
     future::select(stdin_to_ws, ws_to_stdout).await;
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-struct SerializablePoint {
-    x: usize,
-    y: usize,
-}
-
-impl From<Point> for SerializablePoint {
-    fn from(point: Point) -> SerializablePoint {
-        SerializablePoint { x: point.x, y: point.y }
-    }
-}
-
-impl Into<Point> for SerializablePoint {
-    fn into(self) -> Point {
-        Point { x: self.x, y: self.y }
-    }
-}
-
-// Our helper method which will read data from stdin and send it along the
-// sender provided.
-async fn read_stdin(tx: futures::channel::mpsc::UnboundedSender<Message>) {
-    let mut stdin = tokio::io::stdin();
-    loop {
-        let mut buf = vec![0; 1024];
-        let n = match stdin.read(&mut buf).await {
-            Err(_) | Ok(0) => break,
-            Ok(n) => n,
-        };
-        buf.truncate(n);
-        tx.unbounded_send(Message::binary(buf)).unwrap();
-    }
 }
