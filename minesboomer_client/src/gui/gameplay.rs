@@ -10,13 +10,13 @@ use std::sync::{Arc, Mutex};
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 pub struct MinesBoomer {
-    pub game: Arc<Mutex<Multiplayer>>,
+    pub game: Multiplayer,
     mine: MineImage,
     sender: UnboundedSender<Message>,
 }
 
 impl MinesBoomer {
-    pub fn new(sender: UnboundedSender<Message>, game: Arc<Mutex<Multiplayer>>) -> Self {
+    pub fn new(sender: UnboundedSender<Message>, game: Multiplayer) -> Self {
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
         // Restore app state using cc.storage (requires the "persistence" feature).
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
@@ -41,14 +41,11 @@ impl MinesBoomer {
     }
 
     fn get_copied_cell_at(&self, coordinates: Point) -> Option<Cell> {
-        let game = self.game.lock().unwrap();
-        game.get_board().cell_at(coordinates).copied()
+        self.game.get_board().cell_at(coordinates).copied()
     }
 
     fn draw_board(&mut self, ui: &mut Ui) {
-        let game = Arc::clone(&self.game);
-        let dimentions = game.lock().unwrap().get_board_dimentions();
-        drop(game);
+        let dimentions = self.game.get_board_dimentions();
         ui.horizontal(|ui| {
             for x in 0..dimentions.width {
                 ui.vertical(|ui| {
@@ -64,8 +61,7 @@ impl MinesBoomer {
     }
 
     fn draw_gui(&self, ui: &mut Ui) {
-        let game = self.game.lock().unwrap();
-        if let Some(winner) = game.winner() {
+        if let Some(winner) = self.game.winner() {
             ui.vertical_centered_justified(|ui| {
                 ui.heading("WINNER!");
                 ui.heading(winner.name.to_string());
@@ -73,10 +69,10 @@ impl MinesBoomer {
             return;
         }
 
-        let current_player = game.current_player().name.clone();
-        let remining_mines = game.game.remaining_mines();
-        let mines_to_win = game.remaining_to_win();
-        let winning = game.player_winning();
+        let current_player = self.game.current_player().name.clone();
+        let remining_mines = self.game.game.remaining_mines();
+        let mines_to_win = self.game.remaining_to_win();
+        let winning = self.game.player_winning();
 
         ui.vertical_centered_justified(|ui| {
             ui.heading(current_player);
@@ -93,11 +89,12 @@ impl MinesBoomer {
     }
 
     fn on_cell_tapped(&mut self, cell: &Cell) {
-        let mut game = self.game.lock().unwrap();
-        if game.winner().is_none() {
-            game.player_selected(cell.coordinates);
+        if self.game.winner().is_none() {
+            self.game.player_selected(cell.coordinates);
+
             let serializable: SerializablePoint = cell.coordinates.into();
-            self.sender.unbounded_send(Message::Text(serializable.to_json_string())).unwrap();
+            let message = CellSelectedMessage::new(serializable);
+            self.sender.unbounded_send(Message::Text(message.to_json_string())).unwrap();
         }
     }
 }
@@ -110,6 +107,15 @@ impl eframe::App for MinesBoomer {
                 self.draw_gui(ui);
             });
         });
+    }
+}
+
+impl MinesBoomer {
+    pub fn request_user_id(&self) {
+        let name = "Player".to_owned();
+        let message = IdentificationMessage::new(name);
+
+        self.sender.unbounded_send(Message::Text(message.to_json_string())).unwrap();
     }
 }
 
