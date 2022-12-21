@@ -3,6 +3,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::serializables::*;
 
+macro_rules! new_from_and_to_json {
+    () => {
+        pub fn new_from_json(str: &str) -> Result<Self, serde_json::Error> {
+            serde_json::from_str(str)
+        }
+
+        pub fn to_json_string(&self) -> String {
+            serde_json::to_string(self).unwrap()
+        }
+    };
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct GameStartMessage {
     pub name: String,
@@ -14,13 +26,11 @@ impl GameStartMessage {
         GameStartMessage { name: "start".to_owned(), board }
     }
 
-    pub fn to_json_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
-
     pub fn get_board(&self) -> Board {
         self.board.clone().into()
     }
+
+    new_from_and_to_json!();
 }
 
 #[derive(Serialize, Deserialize)]
@@ -33,13 +43,7 @@ impl SimpleMessage {
         SimpleMessage { name: name.into() }
     }
 
-    pub fn new_from_json(str: &str) -> Result<Self, serde_json::Error> {
-        serde_json::from_str(str)
-    }
-
-    pub fn to_json_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
+    new_from_and_to_json!();
 }
 
 #[derive(Serialize, Deserialize)]
@@ -56,13 +60,7 @@ impl IdentificationMessage {
         }
     }
 
-    pub fn new_from_json(str: &str) -> Result<Self, serde_json::Error> {
-        serde_json::from_str(str)
-    }
-
-    pub fn to_json_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
+    new_from_and_to_json!();
 }
 
 #[derive(Serialize, Deserialize)]
@@ -79,11 +77,5 @@ impl CellSelectedMessage {
         }
     }
 
-    pub fn new_from_json(str: &str) -> Result<Self, serde_json::Error> {
-        serde_json::from_str(str)
-    }
-
-    pub fn to_json_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
+    new_from_and_to_json!();
 }

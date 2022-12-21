@@ -1,12 +1,11 @@
 use super::mine_image::MineImage;
-use eframe::egui;
-use egui::{Button, Color32, RichText, TextStyle, Ui, WidgetText};
-use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use minesboomer_utils::*;
 use minesweeper_multiplayer::*;
 
-use std::sync::{Arc, Mutex};
-// use tokio::sync::mpsc::UnboundedSender;
+use eframe::egui;
+use egui::{Button, Color32, RichText, TextStyle, Ui, WidgetText};
+use futures::channel::mpsc::UnboundedSender;
+
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 pub struct MinesBoomer {
@@ -92,9 +91,7 @@ impl MinesBoomer {
         if self.game.winner().is_none() {
             self.game.player_selected(cell.coordinates);
 
-            let serializable: SerializablePoint = cell.coordinates.into();
-            let message = CellSelectedMessage::new(serializable);
-            self.sender.unbounded_send(Message::Text(message.to_json_string())).unwrap();
+            self.send_selected_message(cell);
         }
     }
 }
@@ -110,11 +107,21 @@ impl eframe::App for MinesBoomer {
     }
 }
 
+// Messages
+
 impl MinesBoomer {
     pub fn request_user_id(&self) {
+        println!("<- Sending player identification");
         let name = "Player".to_owned();
         let message = IdentificationMessage::new(name);
 
+        self.sender.unbounded_send(Message::Text(message.to_json_string())).unwrap();
+    }
+
+    pub fn send_selected_message(&self, cell: &Cell) {
+        println!("<- Sending cell selected");
+        let serializable: SerializablePoint = cell.coordinates.into();
+        let message = CellSelectedMessage::new(serializable);
         self.sender.unbounded_send(Message::Text(message.to_json_string())).unwrap();
     }
 }
