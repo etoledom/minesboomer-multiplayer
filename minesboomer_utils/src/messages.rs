@@ -19,11 +19,16 @@ macro_rules! new_from_and_to_json {
 pub struct GameStartMessage {
     pub name: String,
     board: SerializableBoard,
+    pub is_active: bool,
 }
 
 impl GameStartMessage {
-    pub fn new(board: SerializableBoard) -> Self {
-        GameStartMessage { name: "start".to_owned(), board }
+    pub fn new(board: SerializableBoard, is_active: bool) -> Self {
+        GameStartMessage {
+            name: "start".to_owned(),
+            board,
+            is_active,
+        }
     }
 
     pub fn get_board(&self) -> Board {
@@ -66,16 +71,24 @@ impl IdentificationMessage {
 #[derive(Serialize, Deserialize)]
 pub struct CellSelectedMessage {
     pub name: String,
+    pub is_active_player: bool,
     pub coordinates: SerializablePoint,
 }
 
 impl CellSelectedMessage {
-    pub fn new(coordinates: SerializablePoint) -> Self {
+    pub fn new(coordinates: SerializablePoint, is_active_player: bool) -> Self {
         CellSelectedMessage {
             name: "cell_selected".to_owned(),
+            is_active_player,
             coordinates,
         }
     }
 
-    new_from_and_to_json!();
+    pub fn new_from_json(str: &str) -> Result<Self, serde_json::Error> {
+        serde_json::from_str(str)
+    }
+
+    pub fn to_json_string(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
 }

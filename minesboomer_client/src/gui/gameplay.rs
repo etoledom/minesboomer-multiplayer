@@ -5,13 +5,13 @@ use minesweeper_multiplayer::*;
 use eframe::egui;
 use egui::{Button, Color32, RichText, TextStyle, Ui, WidgetText};
 use futures::channel::mpsc::UnboundedSender;
-
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 pub struct MinesBoomer {
     pub game: Multiplayer,
     mine: MineImage,
     sender: UnboundedSender<Message>,
+    is_active: bool,
 }
 
 impl MinesBoomer {
@@ -25,6 +25,7 @@ impl MinesBoomer {
             game,
             mine: MineImage::default(),
             sender,
+            is_active: false,
         }
     }
 
@@ -72,9 +73,15 @@ impl MinesBoomer {
         let remining_mines = self.game.game.remaining_mines();
         let mines_to_win = self.game.remaining_to_win();
         let winning = self.game.player_winning();
+        let is_active = self.is_active;
 
         ui.vertical_centered_justified(|ui| {
-            ui.heading(current_player);
+            if is_active {
+                ui.heading("Is YOUR tourn!");
+            } else {
+                ui.heading("Your enemy is playing");
+            }
+            // ui.heading(current_player);
             ui.label(format!("Mines left: {}", remining_mines));
             if mines_to_win <= 5 {
                 let Some(winning) = winning else {
@@ -88,16 +95,31 @@ impl MinesBoomer {
     }
 
     fn on_cell_tapped(&mut self, cell: &Cell) {
+        if !self.is_active {
+            return;
+        }
         if self.game.winner().is_none() {
             self.game.player_selected(cell.coordinates);
 
             self.send_selected_message(cell);
         }
     }
+
+    pub fn set_is_active(&mut self, is_active: bool) {
+        self.is_active = is_active;
+    }
+
+    pub fn remote_player_selected(&mut self, coordinates: Point) {
+        self.game.player_selected(coordinates);
+    }
+
+    pub fn set_board(&mut self, board: Board) {
+        self.game.game.board = board
+    }
 }
 
 impl eframe::App for MinesBoomer {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal_top(|ui| {
                 self.draw_board(ui);
@@ -121,7 +143,7 @@ impl MinesBoomer {
     pub fn send_selected_message(&self, cell: &Cell) {
         println!("<- Sending cell selected");
         let serializable: SerializablePoint = cell.coordinates.into();
-        let message = CellSelectedMessage::new(serializable);
+        let message = CellSelectedMessage::new(serializable, false);
         self.sender.unbounded_send(Message::Text(message.to_json_string())).unwrap();
     }
 }
