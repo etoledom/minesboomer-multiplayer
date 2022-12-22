@@ -69,7 +69,6 @@ impl MinesBoomer {
             return;
         }
 
-        let current_player = self.game.current_player().name.clone();
         let remining_mines = self.game.game.remaining_mines();
         let mines_to_win = self.game.remaining_to_win();
         let winning = self.game.player_winning();
