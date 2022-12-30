@@ -7,9 +7,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use minesweeper_multiplayer::messages::*;
+use minesweeper_multiplayer::serializables::*;
 use uuid::Uuid;
-
-use minesboomer_utils::*;
 
 use futures::channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
