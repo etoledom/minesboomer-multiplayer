@@ -1,4 +1,4 @@
-use minesweeper_core::Board;
+use minesweeper_core::{Board, Difficulty};
 use serde::{Deserialize, Serialize};
 
 use crate::serializables::*;
@@ -84,11 +84,53 @@ impl CellSelectedMessage {
         }
     }
 
-    pub fn new_from_json(str: &str) -> Result<Self, serde_json::Error> {
-        serde_json::from_str(str)
+    new_from_and_to_json!();
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OpenGamesMessage {
+    pub name: String,
+    pub games: Vec<GameDefinition>,
+}
+
+impl OpenGamesMessage {
+    pub fn new(games: Vec<GameDefinition>) -> Self {
+        OpenGamesMessage { name: "open_games".to_owned(), games }
     }
 
-    pub fn to_json_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
+    new_from_and_to_json!();
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CreateGameMessage {
+    pub name: String,
+    pub game: GameDefinition,
+}
+
+impl CreateGameMessage {
+    pub fn new(name: impl Into<String>, difficulty: Difficulty) -> Self {
+        let game = GameDefinition::new("", name, difficulty);
+        CreateGameMessage { name: "create_game".to_owned(), game }
     }
+
+    new_from_and_to_json!();
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct JoinGameMessage {
+    pub name: String,
+    pub game_id: String,
+    pub client_name: String,
+}
+
+impl JoinGameMessage {
+    pub fn new(game_id: impl Into<String>, client_name: impl Into<String>) -> Self {
+        JoinGameMessage {
+            name: "join_game".to_owned(),
+            game_id: game_id.into(),
+            client_name: client_name.into(),
+        }
+    }
+
+    new_from_and_to_json!();
 }

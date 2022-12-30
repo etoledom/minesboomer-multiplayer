@@ -10,7 +10,7 @@ use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() {
-    let addr = "127.0.0.1:8000".to_string();
+    let addr = "0.0.0.0:8080".to_string();
 
     let multi_games: MultiGames = Arc::new(Mutex::new(vec![]));
 

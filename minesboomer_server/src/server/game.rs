@@ -30,6 +30,10 @@ impl Player {
     pub fn get_address(&self) -> SocketAddr {
         self.address
     }
+
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
 }
 
 pub struct Game {
@@ -64,12 +68,28 @@ impl Game {
         self.id.clone()
     }
 
+    pub fn get_client(&self) -> Option<&Player> {
+        self.client.as_ref()
+    }
+
     pub fn set_client(&mut self, client: Player) {
         self.client = Some(client);
     }
 
+    pub fn remove_client(&mut self) {
+        self.client = None;
+    }
+
     pub fn has_client(&self) -> bool {
         self.client.is_some()
+    }
+
+    pub fn get_host(&self) -> &Player {
+        &self.host
+    }
+
+    pub fn get_difficulty(&self) -> &Difficulty {
+        self.multi_game.get_difficulty()
     }
 
     pub fn player_selected(&mut self, coordinates: Point) {

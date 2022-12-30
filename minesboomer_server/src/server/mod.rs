@@ -58,7 +58,25 @@ impl Server {
         future::select(handle_received, receive_from_others).await;
 
         println!("{} disconnected", &addr);
-        self.peer_map.lock().unwrap().remove(&addr);
+        self.remove_player(&addr);
+    }
+
+    fn remove_player(&self, addr: &SocketAddr) {
+        let mut games = self.games.lock().unwrap();
+        if let Some(index) = games.iter().position(|game| game.get_host().get_address() == *addr) {
+            let removed_game = games.remove(index);
+            if let Some(client) = removed_game.get_client() {
+                self.send_message_to(client, SimpleMessage::new("host_disconnected").to_json_string());
+            }
+        } else {
+            let mut games_with_clients = games.iter_mut().filter(|game| game.has_client());
+            if let Some(game) = games_with_clients.find(|game| game.get_client().unwrap().get_address() == *addr) {
+                game.remove_client();
+                self.send_message_to(game.get_host(), SimpleMessage::new("client_disconnected").to_json_string());
+            }
+        }
+        self.players.lock().unwrap().remove(addr);
+        self.peer_map.lock().unwrap().remove(addr);
     }
 
     fn request_identification(&self, addr: SocketAddr) {
@@ -73,21 +91,8 @@ impl Server {
     }
 
     fn handle_identification_message(&self, message: IdentificationMessage, addr: SocketAddr) {
-        let mut games_guard = self.games.lock().unwrap();
-        if let Some(game) = games_guard.iter_mut().find(|game| !game.has_client()) {
-            println!("-> Game found. Adding player to game");
-            let player = Player::new(message.name, game.get_id(), addr);
-            self.players.lock().unwrap().insert(addr, player.game_id());
-            game.set_client(player);
-            game.generate_multi_game();
-            self.send_new_game_to_players(game);
-        } else {
-            let game_id = Uuid::new_v4().to_string();
-            let player = Player::new(message.name, &game_id, addr);
-            self.players.lock().unwrap().insert(addr, player.game_id());
-            let game = Game::new(player, game_id);
-            games_guard.push(game);
-        }
+        let player = Player::new(message.name, "", addr);
+        self.players.lock().unwrap().insert(addr, player.game_id());
     }
 
     fn handle_received_message(&self, msg: Message, addr: SocketAddr) {
@@ -99,16 +104,55 @@ impl Server {
             let game_id = self.players.lock().unwrap().get(&addr).unwrap().clone();
             let mut games = self.games.lock().unwrap();
             let game = games.iter_mut().find(|game| game.get_id() == game_id).unwrap();
-
             game.player_selected(message.coordinates.into());
             self.send_selected_to_players(game, message.coordinates);
+        } else if let Ok(message) = CreateGameMessage::new_from_json(message_string) {
+            let mut games_guard = self.games.lock().unwrap();
+            let game_id = Uuid::new_v4().to_string();
+            let player = Player::new(message.game.name, &game_id, addr);
+            self.players.lock().unwrap().insert(addr, player.game_id());
+            let game = Game::new(player, game_id);
+            games_guard.push(game);
+            self.send_message_to_addr(&addr, SimpleMessage::new("waiting_enemy").to_json_string());
+        } else if let Ok(message) = JoinGameMessage::new_from_json(message_string) {
+            println!("-> Client joined game");
+            let mut games = self.games.lock().unwrap();
+            let game = games.iter_mut().find(|game| game.get_id() == message.game_id).unwrap();
+            let client = Player::new(message.client_name, game.get_id(), addr);
+            self.players.lock().unwrap().insert(addr, client.game_id());
+            game.set_client(client);
+            game.generate_multi_game();
+            self.send_new_game_to_players(game);
+        } else if let Ok(message) = SimpleMessage::new_from_json(message_string) {
+            if message.name == "games_request" {
+                self.send_open_games(addr);
+            }
         }
+    }
+
+    fn send_open_games(&self, addr: SocketAddr) {
+        let games = self.games.lock().unwrap();
+        let game_defs = games
+            .iter()
+            .filter(|game| !game.has_client())
+            .map(|game| {
+                let name = game.get_host().get_name();
+                let id = game.get_id();
+                let difficulty = game.get_difficulty();
+                GameDefinition::new(id, name, difficulty.clone())
+            })
+            .collect();
+        let message = OpenGamesMessage::new(game_defs);
+        let peers = self.peer_map.lock().unwrap();
+        let sender = peers.get(&addr).unwrap();
+        println!("-> Sending OpenGamesMessage: {}", message.to_json_string());
+        sender.unbounded_send(Message::Text(message.to_json_string())).unwrap();
     }
 
     fn send_selected_to_players(&self, game: &Game, coordinates: SerializablePoint) {
         for player in game.get_players() {
             let is_active = game.is_player_active(player.get_id());
-            self.send_message_to(player, Message::Text(CellSelectedMessage::new(coordinates, is_active).to_json_string()));
+            self.send_message_to(player, CellSelectedMessage::new(coordinates, is_active).to_json_string());
         }
     }
 
@@ -116,14 +160,18 @@ impl Server {
         for player in game.get_players() {
             let is_active = game.is_player_active(player.get_id());
             let board: SerializableBoard = game.get_board().clone().into();
-            self.send_message_to(player, Message::Text(GameStartMessage::new(board, is_active).to_json_string()));
+            self.send_message_to(player, GameStartMessage::new(board, is_active).to_json_string());
         }
     }
 
-    fn send_message_to(&self, player: &Player, message: Message) {
+    fn send_message_to(&self, player: &Player, message_json: String) {
+        self.send_message_to_addr(&player.get_address(), message_json);
+    }
+
+    fn send_message_to_addr(&self, addr: &SocketAddr, message_json: String) {
         let peers = self.peer_map.lock().unwrap();
-        let sender = peers.get(&player.get_address());
-        sender.unwrap().unbounded_send(message).unwrap();
+        let sender = peers.get(addr);
+        sender.unwrap().unbounded_send(Message::Text(message_json)).unwrap();
     }
 
     fn _send_to_all(&self, msg: Message) {
