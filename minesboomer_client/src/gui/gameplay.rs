@@ -1,5 +1,5 @@
 use super::mine_image::MineImage;
-use minesboomer_utils::*;
+use minesweeper_multiplayer::serializables::*;
 use minesweeper_multiplayer::*;
 
 use eframe::egui;

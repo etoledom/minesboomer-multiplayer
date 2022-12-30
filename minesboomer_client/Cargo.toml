@@ -6,8 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-minesweeper_multiplayer = { path = "../minesweeper_multiplayer" }
-minesboomer_utils = { path = "../minesboomer_utils" }
+minesweeper_multiplayer = "0.1.0"
 
 egui = "0.20.1"
 eframe = "0.20.1"

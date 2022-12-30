@@ -2,7 +2,7 @@ use crate::gui::gameplay::{MinesBoomer, OpenGame};
 use futures::channel::mpsc::UnboundedReceiver;
 use futures::pin_mut;
 use futures_util::{future, StreamExt};
-use minesboomer_utils::*;
+use minesweeper_multiplayer::messages::*;
 use std::sync::{Arc, Mutex};
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 
